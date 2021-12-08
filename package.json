@@ -1,0 +1,11 @@
+{
+  "name": "local-crawler",
+  "version": "1.0.0",
+  "description": "Crawl all urls on a website running locally",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Fred Marecesche",
+  "license": "ISC"
+}
