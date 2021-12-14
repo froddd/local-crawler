@@ -2,16 +2,17 @@
   "name": "local-crawler",
   "version": "1.0.0",
   "description": "Crawl all urls on a website running locally",
-  "main": "index.js",
+  "main": "crawl.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
+    "start": "node crawl.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Fred Marecesche",
   "license": "ISC",
   "dependencies": {
     "jsdom": "^19.0.0",
-    "node-fetch": "^3.1.0"
+    "node-fetch": "^3.1.0",
+    "yargs": "^17.3.0"
   }
 }

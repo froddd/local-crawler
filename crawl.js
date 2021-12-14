@@ -1,11 +1,34 @@
+#!/usr/bin/env node
+
 import fs from 'fs';
 import fetch from 'node-fetch';
 import { JSDOM } from 'jsdom';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
 
-const cacheFile = './.cache/pages.json';
-const baseDomain = 'http://international.trade.great:8012';
-const baseUrlPrefix = '/international/';
-const baseUrl = baseDomain + baseUrlPrefix;
+const args = yargs(hideBin(process.argv))
+    .command('$0 <domain>', 'Crawl all urls from a given website')
+    .positional('domain', {
+        describe: 'Domain to crawl. Include the port number if needed.',
+        type: 'string'
+    })
+    .option('b', {
+        alias: 'basepath',
+        default: '/',
+        describe: 'Base path the crawling should be restricted to.',
+        type: 'string'
+    })
+    .help()
+    .argv;
+
+const baseDomain = args.domain.replace(/\/$/, '');
+const basePath = args.basepath;
+const baseUrl = baseDomain + basePath;
+const cacheFileName = baseUrl
+    .replace(/https?:\/\//, '')
+    .replace(/\W+/g, '-')
+    .replace(/(^\W+|\W+$)/, '');
+const cacheFile = `./.cache/${cacheFileName}.json`;
 
 let pages = [];
 let fromCache = 0;
@@ -13,6 +36,7 @@ let fromCache = 0;
 if (fs.existsSync(cacheFile)) {
     pages = JSON.parse(fs.readFileSync(cacheFile, {encoding: "utf8"}));
     fromCache = pages.length;
+    console.log(`Found cache file: loading ${fromCache} urls.`);
 }
 
 const listUrlsOnPage = async pageUrl => {
@@ -20,13 +44,17 @@ const listUrlsOnPage = async pageUrl => {
         return;
     }
 
-    console.log(`Fetching page ${pageUrl}`);
+    process.stdout.write(`Fetching ${pageUrl} ...`);
+
     const response = await fetch(pageUrl);
+
     const page = {
         url: pageUrl,
         status: response.status
     }
+
     if (response.status === 301 || response.status === 302) {
+        console.log(` ${response.status} Redirect`);
         page.location = response.url;
         pages.push(page);
         return await listUrlsOnPage(response.url);
@@ -35,19 +63,22 @@ const listUrlsOnPage = async pageUrl => {
     pages.push(page);
 
     if (response.status === 200) {
+        console.log(` ${response.status} OK`);
         const body = await response.text();
         const jsdom = new JSDOM(body);
         const links = jsdom.window.document.querySelectorAll('a');
 
         for (const link of links) {
             let href = link.getAttribute('href');
-            if (href.startsWith(baseUrlPrefix)) {
+            if (href.startsWith(basePath)) {
                 href = baseDomain + href;
             }
             if (href.startsWith(baseUrl)) {
                 await listUrlsOnPage(href);
             }
         }
+    } else {
+        console.log(` ${response.status} ERROR`);
     }
 }
 
@@ -59,9 +90,9 @@ const listUrlsOnPage = async pageUrl => {
     fs.mkdirSync('./.cache', {recursive: true});
     fs.writeFileSync(cacheFile, JSON.stringify(pages, null, 2));
 
-    console.log('-------------------');
+    console.log('\n-------------------');
     console.log(`Loaded from cache: ${fromCache}`);
-    console.log(`Found ${pages.length} pages:`);
-    pages.forEach(page => console.log(`${page.url} - ${page.status}${page.location ? ` - ${page.location}` : ''}`));
+    console.log(`New pages: ${pages.length - fromCache}`);
+    console.log(`Results written to ${cacheFile}`);
 })();
 
