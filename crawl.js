@@ -13,17 +13,24 @@ const args = yargs(hideBin(process.argv))
         type: 'string'
     })
     .option('b', {
-        alias: 'basepath',
+        alias: 'base-path',
         default: '/',
         describe: 'Base path the crawling should be restricted to.',
         type: 'string'
+    })
+    .option('e', {
+        alias: 'exclude-path',
+        default: null,
+        describe: 'Exclude path from the crawling.',
+        type: 'array'
     })
     .help()
     .argv;
 
 const baseDomain = args.domain.replace(/\/$/, '');
-const basePath = args.basepath;
+const basePath = args.basePath;
 const baseUrl = baseDomain + basePath;
+const excludePaths = args.excludePath.map(path => baseDomain + path);
 const cacheFileName = baseUrl
     .replace(/https?:\/\//, '')
     .replace(/\W+/g, '-')
@@ -70,10 +77,12 @@ const listUrlsOnPage = async pageUrl => {
 
         for (const link of links) {
             let href = link.getAttribute('href');
+
             if (href.startsWith(basePath)) {
                 href = baseDomain + href;
             }
-            if (href.startsWith(baseUrl)) {
+
+            if (href.startsWith(baseUrl) && !excludePaths.some(path => href.startsWith(path))) {
                 await listUrlsOnPage(href);
             }
         }
