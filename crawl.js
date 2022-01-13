@@ -70,7 +70,7 @@ const listUrlsOnPage = async pageUrl => {
     }
 
     if (response.status === 301 || response.status === 302) {
-        console.log(` ${response.status} Redirect`);
+        console.log(`\u001b[33;1m ${response.status} Redirect\u001b[0m`);
         page.location = response.url;
         pages.push(page);
         return await listUrlsOnPage(response.url);
@@ -79,7 +79,7 @@ const listUrlsOnPage = async pageUrl => {
     pages.push(page);
 
     if (response.status === 200) {
-        console.log(` ${response.status} OK`);
+        console.log(`\u001b[32;1m ${response.status} OK\u001b[0m`);
         const body = await response.text();
         const jsdom = new JSDOM(body);
         const links = jsdom.window.document.querySelectorAll('a');
@@ -96,7 +96,7 @@ const listUrlsOnPage = async pageUrl => {
             }
         }
     } else {
-        console.log(` ${response.status} ERROR`);
+        console.log(`\u001b[31;1m ${response.status} ERROR\u001b[0m`);
     }
 }
 
