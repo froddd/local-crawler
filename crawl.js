@@ -24,6 +24,12 @@ const args = yargs(hideBin(process.argv))
         describe: 'Exclude path from the crawling.',
         type: 'array'
     })
+    .option('f', {
+        alias: 'force',
+        default: false,
+        describe: 'Force rebuild of cache file',
+        type: 'boolean'
+    })
     .help()
     .argv;
 
@@ -31,6 +37,7 @@ const baseDomain = args.domain.replace(/\/$/, '');
 const basePath = args.basePath;
 const baseUrl = baseDomain + basePath;
 const excludePaths = args.excludePath.map(path => baseDomain + path);
+const forceCacheRebuild = args.force;
 const cacheFileName = baseUrl
     .replace(/https?:\/\//, '')
     .replace(/\W+/g, '-')
@@ -40,7 +47,9 @@ const cacheFile = `./.cache/${cacheFileName}.json`;
 let pages = [];
 let fromCache = 0;
 
-if (fs.existsSync(cacheFile)) {
+if (forceCacheRebuild) {
+    console.log('Forcing cache rebuild');
+} else if (fs.existsSync(cacheFile)) {
     pages = JSON.parse(fs.readFileSync(cacheFile, {encoding: "utf8"}));
     fromCache = pages.length;
     console.log(`Found cache file: loading ${fromCache} urls.`);
