@@ -24,12 +24,6 @@ const args = yargs(hideBin(process.argv))
         describe: 'Exclude path from the crawling.',
         type: 'array'
     })
-    .option('c', {
-        alias: 'cache',
-        default: false,
-        describe: 'Force rebuild of cache file',
-        type: 'boolean'
-    })
     .option('f', {
         alias: 'from-file',
         default: null,
@@ -42,32 +36,24 @@ const args = yargs(hideBin(process.argv))
 const baseDomain = args.domain.replace(/\/$/, '');
 const basePath = args.basePath;
 const baseUrl = baseDomain + basePath;
-const excludePaths = args.excludePath.map(path => baseDomain + path);
-const forceCacheRebuild = args.cache;
-const cacheFileName = baseUrl
+const excludePaths = args.excludePath.filter(x => !!x).map(path => baseDomain + path);
+const fromFile = args.fromFile;
+
+const now = new Date().toISOString().substr(0,19).replace(/\D/g, '');
+const outputFileName = baseUrl
     .replace(/https?:\/\//, '')
     .replace(/\W+/g, '-')
     .replace(/(^\W+|\W+$)/, '');
-const cacheFile = `./.cache/${cacheFileName}.json`;
-const fromFile = args.fromFile;
+const outputFile = `./reports/${now}-${outputFileName}.json`;
 
 let pages = [];
-let fromCache = 0;
-
-if (forceCacheRebuild) {
-    console.log('Forcing cache rebuild');
-} else if (fs.existsSync(cacheFile)) {
-    pages = JSON.parse(fs.readFileSync(cacheFile, {encoding: "utf8"}));
-    fromCache = pages.length;
-    console.log(`Found cache file: loading ${fromCache} urls.`);
-}
 
 const listUrlsOnPage = async pageUrl => {
     if (pages.find(page => page.url === pageUrl)) {
         return;
     }
 
-    process.stdout.write(`Fetching ${pageUrl} ...`);
+    process.stdout.write(pageUrl);
 
     const response = await fetch(pageUrl, {
         redirect: 'manual',
@@ -126,21 +112,23 @@ const listUrlsOnPage = async pageUrl => {
 
         const urls = JSON.parse(file);
         console.log(`Checking ${urls.length} URL${urls.length !== 1 ? 's' : ''} from ${fromFile}`);
+        console.log(`------------------------`);
         for (const url of urls) {
             await listUrlsOnPage(`${baseUrl}${url.replace(/^\//, '')}`);
         }
     } else {
+        console.log(`Crawling from ${baseUrl}`);
+        console.log(`------------------------`);
         await listUrlsOnPage(baseUrl);
     }
 
     pages.sort((a, b) => a.url > b.url ? 1 : -1);
 
-    fs.mkdirSync('./.cache', {recursive: true});
-    fs.writeFileSync(cacheFile, JSON.stringify(pages, null, 2));
+    fs.mkdirSync('./reports', {recursive: true});
+    fs.writeFileSync(outputFile, JSON.stringify(pages, null, 2));
 
-    console.log('\n-------------------');
-    console.log(`Loaded from cache: ${fromCache}`);
-    console.log(`New pages: ${pages.length - fromCache}`);
-    console.log(`Results written to ${cacheFile}`);
+    console.log(`------------------------`);
+    console.log(`${pages.length} page${pages.length !== 1 ? 's' : ''} found.`);
+    console.log(`Results written to ${outputFile}`);
 })();
 
