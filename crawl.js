@@ -66,9 +66,15 @@ const listUrlsOnPage = async pageUrl => {
 
     if (response.status === 301 || response.status === 302) {
         console.log(`\u001b[33;1m ${response.status} Redirect\u001b[0m`);
+
         const redirectTo = response.headers.get("Location");
         page.location = redirectTo;
+
+        const followedResponse = await fetch(pageUrl);
+        page.finalLocation = followedResponse.url;
+
         pages.push(page);
+
         return await listUrlsOnPage(redirectTo);
     }
 
