@@ -30,6 +30,12 @@ const args = yargs(hideBin(process.argv))
         describe: 'Use JSON file as source of URLs to check. The JSON should represent an array of paths that will be appended to the domain and base path, if any.',
         type: 'string'
     })
+    .option('q', {
+        alias: 'query-string-ignore',
+        default: false,
+        describe: 'Strip query strings from found URLs',
+        type: 'boolean'
+    })
     .help()
     .argv;
 
@@ -49,18 +55,20 @@ const outputFile = `./reports/${now}-${outputFileName}.json`;
 let pages = [];
 
 const listUrlsOnPage = async pageUrl => {
-    if (pages.find(page => page.url === pageUrl)) {
+    const useUrl = args.queryStringIgnore ? pageUrl.split('?')[0] : pageUrl;
+
+    if (pages.find(page => page.url === useUrl)) {
         return;
     }
 
-    process.stdout.write(pageUrl);
+    process.stdout.write(useUrl);
 
-    const response = await fetch(pageUrl, {
+    const response = await fetch(useUrl, {
         redirect: 'manual',
     });
 
     const page = {
-        url: pageUrl,
+        url: useUrl,
         status: response.status
     }
 
@@ -70,7 +78,7 @@ const listUrlsOnPage = async pageUrl => {
         const redirectTo = response.headers.get("Location");
         page.location = redirectTo;
 
-        const followedResponse = await fetch(pageUrl);
+        const followedResponse = await fetch(useUrl);
         page.finalLocation = followedResponse.url;
 
         pages.push(page);
