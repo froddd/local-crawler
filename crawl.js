@@ -62,7 +62,9 @@ const listUrlsOnPage = async pageUrl => {
 
     process.stdout.write(`Fetching ${pageUrl} ...`);
 
-    const response = await fetch(pageUrl);
+    const response = await fetch(pageUrl, {
+        redirect: 'manual',
+    });
 
     const page = {
         url: pageUrl,
@@ -71,9 +73,10 @@ const listUrlsOnPage = async pageUrl => {
 
     if (response.status === 301 || response.status === 302) {
         console.log(`\u001b[33;1m ${response.status} Redirect\u001b[0m`);
-        page.location = response.url;
+        const redirectTo = response.headers.get("Location");
+        page.location = redirectTo;
         pages.push(page);
-        return await listUrlsOnPage(response.url);
+        return await listUrlsOnPage(redirectTo);
     }
 
     pages.push(page);
