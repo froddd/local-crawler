@@ -24,11 +24,17 @@ const args = yargs(hideBin(process.argv))
         describe: 'Exclude path from the crawling.',
         type: 'array'
     })
-    .option('f', {
-        alias: 'force',
+    .option('c', {
+        alias: 'cache',
         default: false,
         describe: 'Force rebuild of cache file',
         type: 'boolean'
+    })
+    .option('f', {
+        alias: 'from-file',
+        default: null,
+        describe: 'Use JSON file as source of URLs to check. The JSON should represent an array of paths that will be appended to the domain and base path, if any.',
+        type: 'string'
     })
     .help()
     .argv;
@@ -37,12 +43,13 @@ const baseDomain = args.domain.replace(/\/$/, '');
 const basePath = args.basePath;
 const baseUrl = baseDomain + basePath;
 const excludePaths = args.excludePath.map(path => baseDomain + path);
-const forceCacheRebuild = args.force;
+const forceCacheRebuild = args.cache;
 const cacheFileName = baseUrl
     .replace(/https?:\/\//, '')
     .replace(/\W+/g, '-')
     .replace(/(^\W+|\W+$)/, '');
 const cacheFile = `./.cache/${cacheFileName}.json`;
+const fromFile = args.fromFile;
 
 let pages = [];
 let fromCache = 0;
@@ -83,19 +90,21 @@ const listUrlsOnPage = async pageUrl => {
 
     if (response.status === 200) {
         console.log(`\u001b[32;1m ${response.status} OK\u001b[0m`);
-        const body = await response.text();
-        const jsdom = new JSDOM(body);
-        const links = jsdom.window.document.querySelectorAll('a');
+        if (!fromFile) {
+            const body = await response.text();
+            const jsdom = new JSDOM(body);
+            const links = jsdom.window.document.querySelectorAll('a');
 
-        for (const link of links) {
-            let href = link.getAttribute('href');
+            for (const link of links) {
+                let href = link.getAttribute('href');
 
-            if (href.startsWith(basePath)) {
-                href = baseDomain + href;
-            }
+                if (href.startsWith(basePath)) {
+                    href = baseDomain + href;
+                }
 
-            if (href.startsWith(baseUrl) && !excludePaths.some(path => href.startsWith(path))) {
-                await listUrlsOnPage(href);
+                if (href.startsWith(baseUrl) && !excludePaths.some(path => href.startsWith(path))) {
+                    await listUrlsOnPage(href);
+                }
             }
         }
     } else {
@@ -104,7 +113,25 @@ const listUrlsOnPage = async pageUrl => {
 }
 
 (async() => {
-    await listUrlsOnPage(baseUrl);
+    if (fromFile) {
+        let file;
+
+        try {
+            file = fs.readFileSync(fromFile, {encoding: "utf8"});
+        }
+        catch(e) {
+            console.error(`File not found: ${fromFile}`);
+            process.exit(1);
+        }
+
+        const urls = JSON.parse(file);
+        console.log(`Checking ${urls.length} URL${urls.length !== 1 ? 's' : ''} from ${fromFile}`);
+        for (const url of urls) {
+            await listUrlsOnPage(`${baseUrl}${url.replace(/^\//, '')}`);
+        }
+    } else {
+        await listUrlsOnPage(baseUrl);
+    }
 
     pages.sort((a, b) => a.url > b.url ? 1 : -1);
 
