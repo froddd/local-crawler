@@ -2,9 +2,9 @@
 
 import fs from 'fs';
 import fetch from 'node-fetch';
-import { JSDOM } from 'jsdom';
+import {JSDOM} from 'jsdom';
 import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
+import {hideBin} from 'yargs/helpers';
 
 const args = yargs(hideBin(process.argv))
     .command('$0 <domain>', 'Crawl all urls from a given website')
@@ -33,7 +33,13 @@ const args = yargs(hideBin(process.argv))
     .option('q', {
         alias: 'query-string-ignore',
         default: false,
-        describe: 'Strip query strings from found URLs',
+        describe: 'Strip query strings from found URLs.',
+        type: 'boolean'
+    })
+    .option('s', {
+        alias: 'sort',
+        default: false,
+        describe: 'Sort the results written to file.',
         type: 'boolean'
     })
     .help()
@@ -44,8 +50,9 @@ const basePath = args.basePath;
 const baseUrl = baseDomain + basePath;
 const excludePaths = args.excludePath.filter(x => !!x).map(path => baseDomain + path);
 const fromFile = args.fromFile;
+const sortOutput = args.sort;
 
-const now = new Date().toISOString().substr(0,19).replace(/\D/g, '');
+const now = new Date().toISOString().substr(0, 19).replace(/\D/g, '');
 const outputFileName = baseUrl
     .replace(/https?:\/\//, '')
     .replace(/\W+/g, '-')
@@ -112,14 +119,13 @@ const listUrlsOnPage = async pageUrl => {
     }
 }
 
-(async() => {
+(async () => {
     if (fromFile) {
         let file;
 
         try {
             file = fs.readFileSync(fromFile, {encoding: "utf8"});
-        }
-        catch(e) {
+        } catch (e) {
             console.error(`File not found: ${fromFile}`);
             process.exit(1);
         }
@@ -136,7 +142,9 @@ const listUrlsOnPage = async pageUrl => {
         await listUrlsOnPage(baseUrl);
     }
 
-    pages.sort((a, b) => a.url > b.url ? 1 : -1);
+    if (sortOutput) {
+        pages.sort((a, b) => a.url > b.url ? 1 : -1);
+    }
 
     fs.mkdirSync('./reports', {recursive: true});
     fs.writeFileSync(outputFile, JSON.stringify(pages, null, 2));
